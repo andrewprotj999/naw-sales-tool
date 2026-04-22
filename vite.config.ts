@@ -205,7 +205,11 @@ function vitePluginStorageProxy(): Plugin {
 
 const plugins = [react(), tailwindcss(), jsxLocPlugin(), vitePluginManusRuntime(), vitePluginManusDebugCollector(), vitePluginStorageProxy()];
 
+const isGithubPages = process.env.GITHUB_ACTIONS === "true";
+const githubPagesBase = process.env.GITHUB_PAGES_BASE || "/naw-sales-tool/";
+
 export default defineConfig({
+  base: isGithubPages ? githubPagesBase : "/",
   plugins,
   resolve: {
     alias: {
