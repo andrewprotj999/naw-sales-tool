@@ -7,6 +7,12 @@
 declare global {
   interface Window {
     __html2canvas?: (element: HTMLElement, options?: Record<string, unknown>) => Promise<any>;
+    jspdf?: {
+      jsPDF: new (options?: Record<string, unknown>) => {
+        addImage: (...args: any[]) => void;
+        save: (filename: string) => void;
+      };
+    };
   }
 }
 
@@ -22,7 +28,7 @@ import { useState, useMemo } from "react";
 - 1. Close Sheet (homeowner-facing, prints/downloads to one US Letter page)
 - 
 - Shared state. No backend. Reset clears everything.
-- Download PDF uses the browser's "Save as PDF" destination in the print dialog.
+- Download PDF exports the close sheet as a true one-page PDF that preserves the on-screen layout.
 - 
 - EDIT POINTS (all at the top of this file):
 - - Brand colors: FOREST, BRONZE, CREAM
@@ -233,23 +239,7 @@ setView("calc");
 }
 };
 
-const downloadPDF = () => {
-const safeName =
-(state.customerName || "Customer").replace(/[^a-z0-9]+/gi, "_") || "Customer";
-const prevTitle = document.title;
-document.title = `NAW-${safeName}-${state.projectDate}`;
-window.print();
-setTimeout(() => {
-document.title = prevTitle;
-}, 500);
-};
-
-const downloadImage = async () => {
-const safeName =
-(state.customerName || "Customer").replace(/[^a-z0-9]+/gi, "_") || "Customer";
-const filename = `NAW-${safeName}-${state.projectDate}.png`;
-
-// Load html2canvas from CDN if not already loaded
+const loadExportLibs = async () => {
 if (!(window).__html2canvas) {
   await new Promise((resolve, reject) => {
     const script = document.createElement("script");
@@ -261,8 +251,57 @@ if (!(window).__html2canvas) {
   });
 }
 
+if (!(window).jspdf?.jsPDF) {
+  await new Promise((resolve, reject) => {
+    const script = document.createElement("script");
+    script.src =
+      "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
+    script.onload = resolve;
+    script.onerror = reject;
+    document.head.appendChild(script);
+  });
+}
+};
+
+const downloadPDF = async () => {
+const safeName =
+(state.customerName || "Customer").replace(/[^a-z0-9]+/gi, "_") || "Customer";
+const filename = `NAW-${safeName}-${state.projectDate}.pdf`;
+
+await loadExportLibs();
+
 const target = document.getElementById("close-sheet-page");
-if (!target) return;
+if (!target || !(window).__html2canvas || !(window).jspdf?.jsPDF) return;
+
+const canvas = await (window).__html2canvas(target, {
+  scale: 3,
+  backgroundColor: CREAM,
+  useCORS: true,
+  logging: false,
+});
+
+const imgData = canvas.toDataURL("image/png");
+const { jsPDF } = (window).jspdf;
+const pdf = new jsPDF({
+  orientation: "portrait",
+  unit: "in",
+  format: "letter",
+  compress: true,
+});
+
+pdf.addImage(imgData, "PNG", 0, 0, 8.5, 11, undefined, "FAST");
+pdf.save(filename);
+};
+
+const downloadImage = async () => {
+const safeName =
+(state.customerName || "Customer").replace(/[^a-z0-9]+/gi, "_") || "Customer";
+const filename = `NAW-${safeName}-${state.projectDate}.png`;
+
+await loadExportLibs();
+
+const target = document.getElementById("close-sheet-page");
+if (!target || !(window).__html2canvas) return;
 
 const canvas = await (window).__html2canvas(target, {
   scale: 2, // 2x for crisp image on retina/phone
