@@ -316,14 +316,12 @@ return (
 className="min-h-screen text-stone-900"
 style={{
 background: IVORY,
-fontFamily: "'Inter', system-ui, sans-serif",
+fontFamily: "'Avenir Next', 'Segoe UI', Arial, sans-serif",
 }}
 >
 <style>{`
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap');
-
     .font-display {
-      font-family: 'Cormorant Garamond', 'Playfair Display', Georgia, serif;
+      font-family: Georgia, 'Times New Roman', serif;
       letter-spacing: 0.01em;
     }
     .tabular { font-variant-numeric: tabular-nums; }
@@ -935,7 +933,7 @@ Download PDF
       padding: "0.6in",
       background: CREAM,
       color: FOREST_DEEP,
-      fontFamily: "'Inter', system-ui, sans-serif",
+      fontFamily: "'Avenir Next', 'Segoe UI', Arial, sans-serif",
       position: "relative",
       boxShadow: "0 4px 20px rgba(47,79,62,0.08)",
     }}
