@@ -268,11 +268,82 @@ return html2canvas(target, {
       if (!sourceNode) return;
 
       const computed = window.getComputedStyle(sourceNode);
-      const computedCssText = Array.from(computed)
-        .filter((prop) => !prop.startsWith("--"))
+      const exportProps = [
+        "display",
+        "position",
+        "top",
+        "right",
+        "bottom",
+        "left",
+        "width",
+        "height",
+        "min-width",
+        "min-height",
+        "max-width",
+        "max-height",
+        "margin",
+        "margin-top",
+        "margin-right",
+        "margin-bottom",
+        "margin-left",
+        "padding",
+        "padding-top",
+        "padding-right",
+        "padding-bottom",
+        "padding-left",
+        "box-sizing",
+        "overflow",
+        "overflow-x",
+        "overflow-y",
+        "border",
+        "border-top",
+        "border-right",
+        "border-bottom",
+        "border-left",
+        "border-radius",
+        "outline",
+        "background",
+        "background-color",
+        "background-image",
+        "background-position",
+        "background-size",
+        "background-repeat",
+        "color",
+        "font",
+        "font-family",
+        "font-size",
+        "font-style",
+        "font-weight",
+        "line-height",
+        "letter-spacing",
+        "text-align",
+        "text-transform",
+        "text-decoration",
+        "white-space",
+        "word-break",
+        "box-shadow",
+        "opacity",
+        "transform",
+        "transform-origin",
+        "flex",
+        "flex-direction",
+        "justify-content",
+        "align-items",
+        "align-self",
+        "gap",
+        "grid-template-columns",
+        "grid-template-rows",
+        "grid-column",
+        "grid-row",
+        "object-fit",
+        "object-position",
+        "list-style",
+      ];
+
+      const computedCssText = exportProps
         .map((prop) => {
           const value = computed.getPropertyValue(prop);
-          return value.includes("oklch(") ? "" : `${prop}: ${value};`;
+          return value && !value.includes("oklch(") ? `${prop}: ${value};` : "";
         })
         .join(" ");
 
