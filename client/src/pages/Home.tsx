@@ -268,22 +268,14 @@ return html2canvas(target, {
       if (!sourceNode) return;
 
       const computed = window.getComputedStyle(sourceNode);
-      [
-        "color",
-        "background-color",
-        "border-top-color",
-        "border-right-color",
-        "border-bottom-color",
-        "border-left-color",
-        "outline-color",
-        "text-decoration-color",
-        "fill",
-        "stroke",
-        "box-shadow",
-      ].forEach((prop) => {
-        const value = computed.getPropertyValue(prop);
-        if (value) node.style.setProperty(prop, value);
-      });
+      const computedCssText =
+        computed.cssText ||
+        Array.from(computed)
+          .map((prop) => `${prop}: ${computed.getPropertyValue(prop)};`)
+          .join(" ");
+
+      node.style.cssText = `${computedCssText}; -webkit-print-color-adjust: exact; print-color-adjust: exact;`;
+      node.removeAttribute("class");
     });
   },
 });
