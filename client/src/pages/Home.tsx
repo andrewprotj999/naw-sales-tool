@@ -277,6 +277,10 @@ return html2canvas(target, {
       node.style.cssText = `${computedCssText}; -webkit-print-color-adjust: exact; print-color-adjust: exact;`;
       node.removeAttribute("class");
     });
+
+    clonedDocument.querySelectorAll('style, link[rel="stylesheet"]').forEach((node) => {
+      node.parentNode?.removeChild(node);
+    });
   },
 });
 };
