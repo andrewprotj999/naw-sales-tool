@@ -266,49 +266,78 @@ return html2canvas(target, {
 });
 };
 
+const triggerFileDownload = (blob: Blob, filename: string) => {
+const url = URL.createObjectURL(blob);
+const a = document.createElement("a");
+a.href = url;
+a.download = filename;
+a.target = "_blank";
+a.rel = "noopener";
+document.body.appendChild(a);
+a.click();
+document.body.removeChild(a);
+
+setTimeout(() => {
+  URL.revokeObjectURL(url);
+}, 30000);
+
+return url;
+};
+
 const downloadPDF = async () => {
 const safeName =
 (state.customerName || "Customer").replace(/[^a-z0-9]+/gi, "_") || "Customer";
-const filename = `NAW-${safeName}-${state.projectDate}.pdf`;
+const filename = `NAW--.pdf`;
 
 const target = document.getElementById("close-sheet-page");
 if (!target) return;
 
-const canvas = await renderExportCanvas(target, 3);
-const imgData = canvas.toDataURL("image/png");
-const pdf = new jsPDF({
-  orientation: "portrait",
-  unit: "in",
-  format: "letter",
-  compress: true,
-});
+try {
+  const canvas = await renderExportCanvas(target, 3);
+  const imgData = canvas.toDataURL("image/png");
+  const pdf = new jsPDF({
+    orientation: "portrait",
+    unit: "in",
+    format: "letter",
+    compress: true,
+  });
 
-pdf.addImage(imgData, "PNG", 0, 0, 8.5, 11, undefined, "FAST");
-pdf.save(filename);
+  pdf.addImage(imgData, "PNG", 0, 0, 8.5, 11, undefined, "FAST");
+  const blob = pdf.output("blob");
+  const url = triggerFileDownload(blob, filename);
+
+  if (/iPad|iPhone|iPod/.test(navigator.userAgent)) {
+    window.open(url, "_blank", "noopener,noreferrer");
+  }
+} catch (error) {
+  console.error("PDF export failed", error);
+  window.alert("PDF export failed. Please try Save as Image, or refresh and try again.");
+}
 };
 
 const downloadImage = async () => {
 const safeName =
 (state.customerName || "Customer").replace(/[^a-z0-9]+/gi, "_") || "Customer";
-const filename = `NAW-${safeName}-${state.projectDate}.png`;
+const filename = `NAW--.png`;
 
 const target = document.getElementById("close-sheet-page");
 if (!target) return;
 
-const canvas = await renderExportCanvas(target, 2);
+try {
+  const canvas = await renderExportCanvas(target, 2);
 
-canvas.toBlob((blob) => {
-  if (!blob) return;
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-}, "image/png");
+  canvas.toBlob((blob) => {
+    if (!blob) return;
+    const url = triggerFileDownload(blob, filename);
 
+    if (/iPad|iPhone|iPod/.test(navigator.userAgent)) {
+      window.open(url, "_blank", "noopener,noreferrer");
+    }
+  }, "image/png");
+} catch (error) {
+  console.error("Image export failed", error);
+  window.alert("Image export failed. Please refresh and try again.");
+}
 };
 
 return (
