@@ -268,11 +268,13 @@ return html2canvas(target, {
       if (!sourceNode) return;
 
       const computed = window.getComputedStyle(sourceNode);
-      const computedCssText =
-        computed.cssText ||
-        Array.from(computed)
-          .map((prop) => `${prop}: ${computed.getPropertyValue(prop)};`)
-          .join(" ");
+      const computedCssText = Array.from(computed)
+        .filter((prop) => !prop.startsWith("--"))
+        .map((prop) => {
+          const value = computed.getPropertyValue(prop);
+          return value.includes("oklch(") ? "" : `${prop}: ${value};`;
+        })
+        .join(" ");
 
       node.style.cssText = `${computedCssText}; -webkit-print-color-adjust: exact; print-color-adjust: exact;`;
       node.removeAttribute("class");
