@@ -257,10 +257,33 @@ return html2canvas(target, {
     clonedTarget.style.setProperty("-webkit-print-color-adjust", "exact");
     clonedTarget.style.setProperty("print-color-adjust", "exact");
 
-    clonedTarget.querySelectorAll("*").forEach((node) => {
+    const sourceNodes = [target, ...Array.from(target.querySelectorAll("*"))] as HTMLElement[];
+    const clonedNodes = [clonedTarget, ...Array.from(clonedTarget.querySelectorAll("*"))] as HTMLElement[];
+
+    clonedNodes.forEach((node, index) => {
       if (!(node instanceof clonedDocument.defaultView!.HTMLElement)) return;
+      const sourceNode = sourceNodes[index];
       node.style.setProperty("-webkit-print-color-adjust", "exact");
       node.style.setProperty("print-color-adjust", "exact");
+      if (!sourceNode) return;
+
+      const computed = window.getComputedStyle(sourceNode);
+      [
+        "color",
+        "background-color",
+        "border-top-color",
+        "border-right-color",
+        "border-bottom-color",
+        "border-left-color",
+        "outline-color",
+        "text-decoration-color",
+        "fill",
+        "stroke",
+        "box-shadow",
+      ].forEach((prop) => {
+        const value = computed.getPropertyValue(prop);
+        if (value) node.style.setProperty(prop, value);
+      });
     });
   },
 });
