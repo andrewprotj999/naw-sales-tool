@@ -4,18 +4,8 @@
  * Preserve the provided proposal-like aesthetic, financing workflow, and print-first close-sheet behavior.
  */
 
-declare global {
-  interface Window {
-    __html2canvas?: (element: HTMLElement, options?: Record<string, unknown>) => Promise<any>;
-    jspdf?: {
-      jsPDF: new (options?: Record<string, unknown>) => {
-        addImage: (...args: any[]) => void;
-        save: (filename: string) => void;
-      };
-    };
-  }
-}
-
+import html2canvas from "html2canvas";
+import { jsPDF } from "jspdf";
 import { useState, useMemo } from "react";
 
 /**
@@ -239,28 +229,41 @@ setView("calc");
 }
 };
 
-const loadExportLibs = async () => {
-if (!(window).__html2canvas) {
-  await new Promise((resolve, reject) => {
-    const script = document.createElement("script");
-    script.src =
-      "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js";
-    script.onload = resolve;
-    script.onerror = reject;
-    document.head.appendChild(script);
-  });
-}
+const renderExportCanvas = async (target: HTMLElement, scale: number) => {
+const width = Math.round(target.getBoundingClientRect().width);
+const height = Math.round(target.getBoundingClientRect().height);
 
-if (!(window).jspdf?.jsPDF) {
-  await new Promise((resolve, reject) => {
-    const script = document.createElement("script");
-    script.src =
-      "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
-    script.onload = resolve;
-    script.onerror = reject;
-    document.head.appendChild(script);
-  });
-}
+return html2canvas(target, {
+  scale,
+  backgroundColor: CREAM,
+  useCORS: true,
+  logging: false,
+  width,
+  height,
+  windowWidth: width,
+  windowHeight: height,
+  scrollX: 0,
+  scrollY: -window.scrollY,
+  onclone: (clonedDocument) => {
+    const clonedTarget = clonedDocument.getElementById("close-sheet-page") as HTMLElement | null;
+    if (!clonedTarget) return;
+
+    clonedTarget.style.width = "8.5in";
+    clonedTarget.style.height = "11in";
+    clonedTarget.style.minHeight = "11in";
+    clonedTarget.style.boxSizing = "border-box";
+    clonedTarget.style.overflow = "hidden";
+    clonedTarget.style.background = CREAM;
+    clonedTarget.style.setProperty("-webkit-print-color-adjust", "exact");
+    clonedTarget.style.setProperty("print-color-adjust", "exact");
+
+    clonedTarget.querySelectorAll("*").forEach((node) => {
+      if (!(node instanceof clonedDocument.defaultView!.HTMLElement)) return;
+      node.style.setProperty("-webkit-print-color-adjust", "exact");
+      node.style.setProperty("print-color-adjust", "exact");
+    });
+  },
+});
 };
 
 const downloadPDF = async () => {
@@ -268,20 +271,11 @@ const safeName =
 (state.customerName || "Customer").replace(/[^a-z0-9]+/gi, "_") || "Customer";
 const filename = `NAW-${safeName}-${state.projectDate}.pdf`;
 
-await loadExportLibs();
-
 const target = document.getElementById("close-sheet-page");
-if (!target || !(window).__html2canvas || !(window).jspdf?.jsPDF) return;
+if (!target) return;
 
-const canvas = await (window).__html2canvas(target, {
-  scale: 3,
-  backgroundColor: CREAM,
-  useCORS: true,
-  logging: false,
-});
-
+const canvas = await renderExportCanvas(target, 3);
 const imgData = canvas.toDataURL("image/png");
-const { jsPDF } = (window).jspdf;
 const pdf = new jsPDF({
   orientation: "portrait",
   unit: "in",
@@ -298,17 +292,10 @@ const safeName =
 (state.customerName || "Customer").replace(/[^a-z0-9]+/gi, "_") || "Customer";
 const filename = `NAW-${safeName}-${state.projectDate}.png`;
 
-await loadExportLibs();
-
 const target = document.getElementById("close-sheet-page");
-if (!target || !(window).__html2canvas) return;
+if (!target) return;
 
-const canvas = await (window).__html2canvas(target, {
-  scale: 2, // 2x for crisp image on retina/phone
-  backgroundColor: CREAM,
-  useCORS: true,
-  logging: false,
-});
+const canvas = await renderExportCanvas(target, 2);
 
 canvas.toBlob((blob) => {
   if (!blob) return;
