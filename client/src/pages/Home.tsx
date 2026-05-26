@@ -4,8 +4,8 @@
  * Preserve the provided proposal-like aesthetic, financing workflow, and print-first close-sheet behavior.
  */
 
-import html2canvas from "html2canvas";
 import { jsPDF } from "jspdf";
+import { domToPng } from "modern-screenshot";
 import { useState, useMemo } from "react";
 
 /**
@@ -229,131 +229,22 @@ setView("calc");
 }
 };
 
-const renderExportCanvas = async (target: HTMLElement, scale: number) => {
+const renderExportImageData = async (target: HTMLElement, scale: number) => {
 const width = Math.round(target.getBoundingClientRect().width);
 const height = Math.round(target.getBoundingClientRect().height);
 
-return html2canvas(target, {
-  scale,
-  backgroundColor: CREAM,
-  useCORS: true,
-  logging: false,
+return domToPng(target, {
   width,
   height,
-  windowWidth: width,
-  windowHeight: height,
-  scrollX: 0,
-  scrollY: -window.scrollY,
-  onclone: (clonedDocument) => {
-    const clonedTarget = clonedDocument.getElementById("close-sheet-page") as HTMLElement | null;
-    if (!clonedTarget) return;
-
-    clonedTarget.style.width = "8.5in";
-    clonedTarget.style.height = "11in";
-    clonedTarget.style.minHeight = "11in";
-    clonedTarget.style.boxSizing = "border-box";
-    clonedTarget.style.overflow = "hidden";
-    clonedTarget.style.background = CREAM;
-    clonedTarget.style.setProperty("-webkit-print-color-adjust", "exact");
-    clonedTarget.style.setProperty("print-color-adjust", "exact");
-
-    const sourceNodes = [target, ...Array.from(target.querySelectorAll("*"))] as HTMLElement[];
-    const clonedNodes = [clonedTarget, ...Array.from(clonedTarget.querySelectorAll("*"))] as HTMLElement[];
-
-    clonedNodes.forEach((node, index) => {
-      if (!(node instanceof clonedDocument.defaultView!.HTMLElement)) return;
-      const sourceNode = sourceNodes[index];
-      node.style.setProperty("-webkit-print-color-adjust", "exact");
-      node.style.setProperty("print-color-adjust", "exact");
-      if (!sourceNode) return;
-
-      const computed = window.getComputedStyle(sourceNode);
-      const exportProps = [
-        "display",
-        "position",
-        "top",
-        "right",
-        "bottom",
-        "left",
-        "width",
-        "height",
-        "min-width",
-        "min-height",
-        "max-width",
-        "max-height",
-        "margin",
-        "margin-top",
-        "margin-right",
-        "margin-bottom",
-        "margin-left",
-        "padding",
-        "padding-top",
-        "padding-right",
-        "padding-bottom",
-        "padding-left",
-        "box-sizing",
-        "overflow",
-        "overflow-x",
-        "overflow-y",
-        "border",
-        "border-top",
-        "border-right",
-        "border-bottom",
-        "border-left",
-        "border-radius",
-        "outline",
-        "background",
-        "background-color",
-        "background-image",
-        "background-position",
-        "background-size",
-        "background-repeat",
-        "color",
-        "font",
-        "font-family",
-        "font-size",
-        "font-style",
-        "font-weight",
-        "line-height",
-        "letter-spacing",
-        "text-align",
-        "text-transform",
-        "text-decoration",
-        "white-space",
-        "word-break",
-        "box-shadow",
-        "opacity",
-        "transform",
-        "transform-origin",
-        "flex",
-        "flex-direction",
-        "justify-content",
-        "align-items",
-        "align-self",
-        "gap",
-        "grid-template-columns",
-        "grid-template-rows",
-        "grid-column",
-        "grid-row",
-        "object-fit",
-        "object-position",
-        "list-style",
-      ];
-
-      const computedCssText = exportProps
-        .map((prop) => {
-          const value = computed.getPropertyValue(prop);
-          return value && !value.includes("oklch(") ? `${prop}: ${value};` : "";
-        })
-        .join(" ");
-
-      node.style.cssText = `${computedCssText}; -webkit-print-color-adjust: exact; print-color-adjust: exact;`;
-      node.removeAttribute("class");
-    });
-
-    clonedDocument.querySelectorAll('style, link[rel="stylesheet"]').forEach((node) => {
-      node.parentNode?.removeChild(node);
-    });
+  scale,
+  backgroundColor: CREAM,
+  style: {
+    margin: "0",
+    transform: "none",
+    transformOrigin: "top left",
+  },
+  filter: (node) => {
+    return !(node instanceof HTMLElement && node.classList.contains("no-print"));
   },
 });
 };
@@ -385,8 +276,7 @@ const target = document.getElementById("close-sheet-page");
 if (!target) return;
 
 try {
-  const canvas = await renderExportCanvas(target, 3);
-  const imgData = canvas.toDataURL("image/png");
+  const imgData = await renderExportImageData(target, 2);
   const pdf = new jsPDF({
     orientation: "portrait",
     unit: "in",
@@ -416,16 +306,13 @@ const target = document.getElementById("close-sheet-page");
 if (!target) return;
 
 try {
-  const canvas = await renderExportCanvas(target, 2);
+  const imgData = await renderExportImageData(target, 2);
+  const blob = await fetch(imgData).then((response) => response.blob());
+  const url = triggerFileDownload(blob, filename);
 
-  canvas.toBlob((blob) => {
-    if (!blob) return;
-    const url = triggerFileDownload(blob, filename);
-
-    if (/iPad|iPhone|iPod/.test(navigator.userAgent)) {
-      window.open(url, "_blank", "noopener,noreferrer");
-    }
-  }, "image/png");
+  if (/iPad|iPhone|iPod/.test(navigator.userAgent)) {
+    window.open(url, "_blank", "noopener,noreferrer");
+  }
 } catch (error) {
   console.error("Image export failed", error);
   window.alert("Image export failed. Please refresh and try again.");
