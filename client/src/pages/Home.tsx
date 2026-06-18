@@ -45,8 +45,10 @@ const TERM_DEFAULT = 84;
 const APR_LOW = 0.0674;
 const APR_HIGH = 0.2094;
 
-const REBATE_WINDOW = 225;
-const REBATE_SLIDER = 600;
+const GLASS_TYPE_OPTIONS = [
+"Double-Pane Glass",
+"Climatech Triple-Pane Glass",
+];
 
 const COMPETITOR_NAME_SUGGESTIONS = ["Andersen", "Pella", "Marvin", "DaBella"];
 
@@ -81,7 +83,7 @@ const DISCLAIMER_FINANCE =
 "Financing estimates based on LightStream home improvement loan APR range of 6.74%–20.94% with AutoPay. Rates without AutoPay are 0.50 percentage points higher. Final rate and terms depend on credit profile and application.";
 
 const DISCLAIMER_REBATE =
-"Avista rebate amounts shown reflect current program levels ($225/window, $600/sliding glass door). Final rebate is determined and paid by Avista; we prepare and submit all paperwork on your behalf.";
+"Rebate amounts are entered manually for each quote. Final rebate availability and payout are determined by the applicable program or utility; we prepare and submit any required paperwork on your behalf.";
 
 // ───────────── Helpers ─────────────
 const pmt = (annualRate, months, principal) => {
@@ -146,6 +148,8 @@ competitors: [
 ],
 competitorsOpen: false,
 includeTrimIncentive: true,
+rebateAmount: "",
+glassType: "Climatech Triple-Pane Glass",
 };
 
 // ───────────── Root ─────────────
@@ -168,14 +172,13 @@ const hasProject = project !== null && project > 0;
 const finalTotal = hasProject ? project + adders : null;
 const totalOpenings = (windows ?? 0) + sliders;
 
-const rebateTotal =
-  (windows ?? 0) * REBATE_WINDOW + sliders * REBATE_SLIDER;
+const rebateTotal = parseCurrency(state.rebateAmount);
 
 const payInFullSavings = hasProject ? finalTotal * (discountSafe / 100) : null;
 const payInFullTotal = hasProject ? finalTotal - payInFullSavings : null;
 
-const afterRebateFinanced = hasProject ? finalTotal - rebateTotal : null;
-const afterRebatePayInFull = hasProject ? payInFullTotal - rebateTotal : null;
+const afterRebateFinanced = hasProject ? finalTotal - (rebateTotal ?? 0) : null;
+const afterRebatePayInFull = hasProject ? payInFullTotal - (rebateTotal ?? 0) : null;
 
 const paymentLow = hasProject ? pmt(APR_LOW, state.termMonths, finalTotal) : null;
 const paymentHigh = hasProject ? pmt(APR_HIGH, state.termMonths, finalTotal) : null;
@@ -529,6 +532,40 @@ Reset
             value={state.installAdders}
             onChange={(v) => updateField("installAdders", v)}
           />
+          <CurrencyInput
+            label="Rebate Amount"
+            value={state.rebateAmount}
+            onChange={(v) => updateField("rebateAmount", v)}
+            placeholder=""
+          />
+          <div>
+            <Label>Glass Type</Label>
+            <div className="grid grid-cols-2 gap-3">
+              {GLASS_TYPE_OPTIONS.map((option) => (
+                <button
+                  key={option}
+                  type="button"
+                  onClick={() => updateField("glassType", option)}
+                  className="px-4 py-3 rounded-md border text-sm font-medium transition-all"
+                  style={
+                    state.glassType === option
+                      ? {
+                          background: FOREST,
+                          color: "white",
+                          borderColor: FOREST,
+                        }
+                      : {
+                          background: "white",
+                          color: FOREST_DEEP,
+                          borderColor: BRONZE_SOFT,
+                        }
+                  }
+                >
+                  {option}
+                </button>
+              ))}
+            </div>
+          </div>
           <div>
             <Label>Pay-in-Full Discount (%)</Label>
             <input
@@ -573,13 +610,7 @@ Reset
             }}
           >
             <span>
-              <strong>Avista rebate:</strong>{" "}
-              {derived.windows ?? 0} window
-              {(derived.windows ?? 0) === 1 ? "" : "s"} × $225
-              {derived.sliders > 0 &&
-                ` + ${derived.sliders} slider${
-                  derived.sliders === 1 ? "" : "s"
-                } × $600`}
+              <strong>Rebate amount:</strong> Entered manually
             </span>
             <span className="tabular font-semibold">
               {fmtUSD(derived.rebateTotal)}
@@ -728,7 +759,7 @@ Reset
 
             {derived.rebateTotal > 0 && (
               <OutputRow
-                label="Avista rebate"
+                label="Rebate amount"
                 value={fmtUSD(derived.rebateTotal)}
                 accent
                 small
@@ -1140,7 +1171,7 @@ Download PDF
         </div>
       </div>
 
-      {/* Avista rebate */}
+      {/* Rebate amount */}
       {derived.rebateTotal > 0 && (
         <div
           className="mb-5 p-4 grid grid-cols-3 gap-4"
@@ -1151,7 +1182,7 @@ Download PDF
         >
           <div>
             <div className="tracked-caps mb-1" style={{ color: BRONZE }}>
-              Avista Rebate
+              Rebate Amount
             </div>
             <div
               className="font-display tabular"
@@ -1167,8 +1198,7 @@ Download PDF
               className="mt-1"
               style={{ fontSize: "9px", color: FOREST_DEEP, opacity: 0.7 }}
             >
-              {derived.windows ?? 0} × $225
-              {derived.sliders > 0 && ` + ${derived.sliders} × $600`}
+              Entered manually
             </div>
           </div>
           <div>
@@ -1249,7 +1279,7 @@ Download PDF
             What's Included
           </div>
           <ul className="space-y-1" style={{ fontSize: "10.5px", lineHeight: 1.55 }}>
-            {WHATS_INCLUDED.map((v, i) => (
+            {[state.glassType || "Climatech Triple-Pane Glass", ...WHATS_INCLUDED.slice(1)].map((v, i) => (
               <li key={i} className="flex gap-2">
                 <span style={{ color: BRONZE }}>◆</span>
                 <span>{v}</span>
@@ -1450,7 +1480,7 @@ style={{ borderColor: BRONZE_SOFT }}
 );
 }
 
-function CurrencyInput({ label, value, onChange }) {
+function CurrencyInput({ label, value, onChange, placeholder = "0" }) {
 const display =
 value === "" || value === null
 ? ""
@@ -1472,7 +1502,7 @@ value={display}
 onChange={(e) =>
 onChange(e.target.value.replace(/[^0-9]/g, ""))
 }
-placeholder="0"
+placeholder={placeholder}
 className="w-full pl-8 pr-4 py-3 bg-white border rounded-md outline-none text-lg tabular"
 style={{ borderColor: BRONZE_SOFT }}
 />
