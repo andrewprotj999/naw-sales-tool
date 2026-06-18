@@ -46,7 +46,7 @@ const APR_LOW = 0.0674;
 const APR_HIGH = 0.2094;
 
 const GLASS_TYPE_OPTIONS = [
-"Double-Pane Glass",
+"Premium Double-Pane Glass",
 "Climatech Triple-Pane Glass",
 ];
 
