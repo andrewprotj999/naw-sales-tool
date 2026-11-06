@@ -38,7 +38,7 @@ const CREAM = "#FAF6EE";
 const IVORY = "#F5EFE2";
 
 // ───────────── Config (edit here) ─────────────
-const DISCOUNT_DEFAULT = 4;
+const DISCOUNT_DEFAULT = 0;
 const DISCOUNT_MAX = 10;
 const TERM_OPTIONS = [60, 84, 120];
 const TERM_DEFAULT = 84;
@@ -58,7 +58,6 @@ const HEADLINE = "A clear, transparent view of your project—simple and easy to
 
 const VALUE_PROPS = [
 "Full install in 2–3 days",
-"Full Avista rebate coordination included",
 "$0 Down Financing Available",
 "Locally Owned & Operated",
 "Best Price Guarantee",
@@ -73,17 +72,13 @@ const WHATS_INCLUDED = [
 "Full tear-out and haul-away",
 ];
 
-const SAME_DAY_INCENTIVE_TITLE = "Sign Today, Get Trim On Us";
-const SAME_DAY_INCENTIVE_BODY =
-"Lock your project in today and we'll include interior OR exterior trim work at no additional cost — applies whether you pay in full (cash, check, or card) or finance through LightStream.";
-
 const CLOSING_LINE = "Sign today and we can start measurements this week.";
 
 const DISCLAIMER_FINANCE =
 "Financing estimates based on LightStream home improvement loan APR range of 6.74%–20.94% with AutoPay. Rates without AutoPay are 0.50 percentage points higher. Final rate and terms depend on credit profile and application.";
 
-const DISCLAIMER_REBATE =
-"Rebate amounts are entered manually for each quote. Final rebate availability and payout are determined by the applicable program or utility; we prepare and submit any required paperwork on your behalf.";
+const DISCLAIMER_PRICE =
+"Any applicable incentives are already reflected in the quoted price.";
 
 // ───────────── Helpers ─────────────
 const pmt = (annualRate, months, principal) => {
@@ -131,6 +126,17 @@ const n = parseInt(String(raw).replace(/[^0-9]/g, ""), 10);
 return isFinite(n) ? n : null;
 };
 
+// A discount must be explicitly numeric and within the existing policy cap.
+// Empty, partial, negative and out-of-range entries are invalid, never a fallback offer.
+const parseDiscount = (raw) => {
+const text = String(raw ?? "").trim();
+if (!/^(?:\d+(?:\.\d*)?|\.\d+)$/.test(text)) return null;
+const value = Number(text);
+return Number.isFinite(value) && value >= 0 && value <= DISCOUNT_MAX
+? value
+: null;
+};
+
 // ───────────── Initial State ─────────────
 const initialState = {
 customerName: "",
@@ -147,7 +153,6 @@ competitors: [
 { name: "", quote: "" },
 ],
 competitorsOpen: false,
-includeTrimIncentive: true,
 rebateAmount: "",
 glassType: "Climatech Triple-Pane Glass",
 };
@@ -162,11 +167,8 @@ const windows = parseInt0(state.numWindows);
 const sliders = parseInt0(state.numSliders) ?? 0;
 const project = parseCurrency(state.projectTotal);
 const adders = parseCurrency(state.installAdders) ?? 0;
-const discount = parseFloat(state.discountPct);
-const discountSafe =
-isFinite(discount) && discount >= 0 && discount <= DISCOUNT_MAX
-? discount
-: DISCOUNT_DEFAULT;
+const discount = parseDiscount(state.discountPct);
+const discountValid = discount !== null;
 
 const hasProject = project !== null && project > 0;
 const finalTotal = hasProject ? project + adders : null;
@@ -174,11 +176,9 @@ const totalOpenings = (windows ?? 0) + sliders;
 
 const rebateTotal = parseCurrency(state.rebateAmount);
 
-const payInFullSavings = hasProject ? finalTotal * (discountSafe / 100) : null;
-const payInFullTotal = hasProject ? finalTotal - payInFullSavings : null;
+const payInFullSavings = hasProject && discountValid ? finalTotal * (discount / 100) : null;
+const payInFullTotal = hasProject && discountValid ? finalTotal - payInFullSavings : null;
 
-const afterRebateFinanced = hasProject ? finalTotal - (rebateTotal ?? 0) : null;
-const afterRebatePayInFull = hasProject ? payInFullTotal - (rebateTotal ?? 0) : null;
 
 const paymentLow = hasProject ? pmt(APR_LOW, state.termMonths, finalTotal) : null;
 const paymentHigh = hasProject ? pmt(APR_HIGH, state.termMonths, finalTotal) : null;
@@ -200,6 +200,7 @@ const competitorRows = state.competitors
 
 return {
   hasProject,
+  discountValid,
   windows,
   sliders,
   totalOpenings,
@@ -207,8 +208,6 @@ return {
   rebateTotal,
   payInFullSavings,
   payInFullTotal,
-  afterRebateFinanced,
-  afterRebatePayInFull,
   paymentLow,
   paymentHigh,
   competitorRows,
@@ -365,7 +364,7 @@ fontFamily: "'Avenir Next', 'Segoe UI', Arial, sans-serif",
       derived={derived}
       updateField={updateField}
       updateCompetitor={updateCompetitor}
-      onGenerate={() => setView("sheet")}
+      onGenerate={() => { if (derived.hasProject && derived.discountValid) setView("sheet"); }}
       onReset={reset}
     />
   ) : (
@@ -449,25 +448,11 @@ updateCompetitor,
 onGenerate,
 onReset,
 }) {
-const [discountError, setDiscountError] = useState("");
-
-const handleDiscount = (v) => {
-if (v === "") {
-setDiscountError("");
-updateField("discountPct", "");
-return;
-}
-const n = parseFloat(v);
-if (isFinite(n) && n > DISCOUNT_MAX) {
-setDiscountError(`Discount capped at ${DISCOUNT_MAX}%.`);
-updateField("discountPct", String(DISCOUNT_MAX));
-return;
-}
-setDiscountError("");
-updateField("discountPct", v);
-};
-
-const canGenerate = derived.hasProject;
+const handleDiscount = (v) => updateField("discountPct", v);
+const discountError = derived.discountValid
+? ""
+: `Enter a discount from 0 to ${DISCOUNT_MAX}%. Use 0 for no discount.`;
+const canGenerate = derived.hasProject && derived.discountValid;
 
 return (
 <div className="max-w-7xl mx-auto px-6 py-8">
@@ -533,7 +518,7 @@ Reset
             onChange={(v) => updateField("installAdders", v)}
           />
           <CurrencyInput
-            label="Rebate Amount"
+            label="Internal: Estimated Assigned Utility Rebate"
             value={state.rebateAmount}
             onChange={(v) => updateField("rebateAmount", v)}
             placeholder=""
@@ -567,7 +552,7 @@ Reset
             </div>
           </div>
           <div>
-            <Label>Pay-in-Full Discount (%)</Label>
+            <Label>Approved Pay-in-Full Discount (%)</Label>
             <input
               type="number"
               min="0"
@@ -575,28 +560,14 @@ Reset
               step="0.5"
               value={state.discountPct}
               onChange={(e) => handleDiscount(e.target.value)}
+              aria-invalid={!derived.discountValid}
+              aria-describedby="discount-help"
               className="w-full px-4 py-3 bg-white border rounded-md outline-none text-lg tabular"
               style={{ borderColor: BRONZE_SOFT }}
             />
-            {discountError && (
-              <p className="text-xs text-red-700 mt-1">{discountError}</p>
-            )}
-          </div>
-          <div className="flex items-end">
-            <label
-              className="flex items-center gap-3 text-sm cursor-pointer"
-              style={{ color: FOREST_DEEP }}
-            >
-              <input
-                type="checkbox"
-                checked={state.includeTrimIncentive}
-                onChange={(e) =>
-                  updateField("includeTrimIncentive", e.target.checked)
-                }
-                className="w-4 h-4"
-              />
-              <span>Include same-day trim incentive</span>
-            </label>
+            <p id="discount-help" className={`text-xs mt-1 ${discountError ? "text-red-700" : "text-gray-600"}`} role={discountError ? "alert" : undefined}>
+              {discountError || "Defaults to 0%. Enter a positive discount only when approved."}
+            </p>
           </div>
         </div>
 
@@ -610,7 +581,7 @@ Reset
             }}
           >
             <span>
-              <strong>Rebate amount:</strong> Entered manually
+              <strong>Internal assigned utility rebate:</strong> Entered manually
             </span>
             <span className="tabular font-semibold">
               {fmtUSD(derived.rebateTotal)}
@@ -759,7 +730,7 @@ Reset
 
             {derived.rebateTotal > 0 && (
               <OutputRow
-                label="Rebate amount"
+                label="Internal assigned utility rebate"
                 value={fmtUSD(derived.rebateTotal)}
                 accent
                 small
@@ -1171,69 +1142,6 @@ Download PDF
         </div>
       </div>
 
-      {/* Rebate amount */}
-      {derived.rebateTotal > 0 && (
-        <div
-          className="mb-5 p-4 grid grid-cols-3 gap-4"
-          style={{
-            background: "white",
-            border: `1px solid ${BRONZE_SOFT}`,
-          }}
-        >
-          <div>
-            <div className="tracked-caps mb-1" style={{ color: BRONZE }}>
-              Rebate Amount
-            </div>
-            <div
-              className="font-display tabular"
-              style={{
-                fontSize: "20px",
-                fontWeight: 600,
-                color: FOREST,
-              }}
-            >
-              {fmtUSD(derived.rebateTotal)}
-            </div>
-            <div
-              className="mt-1"
-              style={{ fontSize: "9px", color: FOREST_DEEP, opacity: 0.7 }}
-            >
-              Entered manually
-            </div>
-          </div>
-          <div>
-            <div className="tracked-caps mb-1" style={{ color: BRONZE }}>
-              After Rebate · Financed
-            </div>
-            <div
-              className="font-display tabular"
-              style={{
-                fontSize: "20px",
-                fontWeight: 600,
-                color: FOREST_DEEP,
-              }}
-            >
-              {fmtUSD(derived.afterRebateFinanced)}
-            </div>
-          </div>
-          <div>
-            <div className="tracked-caps mb-1" style={{ color: BRONZE }}>
-              After Rebate · Pay in Full
-            </div>
-            <div
-              className="font-display tabular"
-              style={{
-                fontSize: "20px",
-                fontWeight: 600,
-                color: FOREST,
-              }}
-            >
-              {fmtUSD(derived.afterRebatePayInFull)}
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Monthly payment */}
       <div className="mb-5">
         <div className="tracked-caps mb-1" style={{ color: BRONZE }}>
@@ -1288,33 +1196,6 @@ Download PDF
           </ul>
         </div>
       </div>
-
-      {/* Same-day incentive */}
-      {state.includeTrimIncentive && (
-        <div
-          className="mb-5 p-4"
-          style={{
-            background: FOREST,
-            color: CREAM,
-            borderLeft: `3px solid ${BRONZE}`,
-          }}
-        >
-          <div
-            className="font-display mb-1"
-            style={{
-              fontSize: "15px",
-              fontWeight: 600,
-              letterSpacing: "0.02em",
-              color: BRONZE_SOFT,
-            }}
-          >
-            {SAME_DAY_INCENTIVE_TITLE}
-          </div>
-          <div style={{ fontSize: "10.5px", lineHeight: 1.55 }}>
-            {SAME_DAY_INCENTIVE_BODY}
-          </div>
-        </div>
-      )}
 
       {/* Competitor comparison */}
       {competitorsToShow.length > 0 && (
@@ -1393,7 +1274,7 @@ Download PDF
         }}
       >
         <p>{DISCLAIMER_FINANCE}</p>
-        <p>{DISCLAIMER_REBATE}</p>
+        <p>{DISCLAIMER_PRICE}</p>
         <p className="pt-1" style={{ fontWeight: 500 }}>
           www.northwest-artisan-windows.com
         </p>
@@ -1557,3 +1438,4 @@ color: accent ? FOREST : FOREST_DEEP,
 </div>
 );
 }
+
