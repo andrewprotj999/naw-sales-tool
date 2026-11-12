@@ -77,8 +77,7 @@ const CLOSING_LINE = "Sign today and we can start measurements this week.";
 const DISCLAIMER_FINANCE =
 "Financing estimates based on LightStream home improvement loan APR range of 6.74%–20.94% with AutoPay. Rates without AutoPay are 0.50 percentage points higher. Final rate and terms depend on credit profile and application.";
 
-const DISCLAIMER_PRICE =
-"Any applicable incentives are already reflected in the quoted price.";
+
 
 // ───────────── Helpers ─────────────
 const pmt = (annualRate, months, principal) => {
@@ -1274,7 +1273,6 @@ Download PDF
         }}
       >
         <p>{DISCLAIMER_FINANCE}</p>
-        <p>{DISCLAIMER_PRICE}</p>
         <p className="pt-1" style={{ fontWeight: 500 }}>
           www.northwest-artisan-windows.com
         </p>
